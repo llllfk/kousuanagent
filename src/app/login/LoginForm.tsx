@@ -9,9 +9,13 @@ interface LoginUser {
   role: string;
 }
 
+type Mode = "student" | "teacher";
+
 export default function LoginForm() {
   const router = useRouter();
+  const [mode, setMode] = useState<Mode>("student");
   const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [candidates, setCandidates] = useState<LoginUser[]>([]);
   const [message, setMessage] = useState("");
@@ -23,15 +27,27 @@ export default function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: targetName }),
+        body: JSON.stringify({
+          name: targetName,
+          role: mode,
+          password: mode === "teacher" ? password : undefined,
+        }),
       });
       const data = await res.json();
       if (data.error) {
         setMessage(data.error);
         return;
       }
+      if (data.status === "bad_password") {
+        setMessage("老师密码不正确，请重试（默认密码：Admin123456）。");
+        return;
+      }
       if (data.status === "none") {
-        setMessage("未找到该姓名的账号，请老师先在“学生管理”中创建，或确认是否有拼写错误。");
+        setMessage(
+          mode === "teacher"
+            ? "未找到该姓名的老师账号，请确认名字是否正确。"
+            : "未找到该姓名的学生账号，请老师先在“学生管理”中创建后再登录。"
+        );
         return;
       }
       if (data.status === "multiple") {
@@ -70,6 +86,18 @@ export default function LoginForm() {
     }
   }
 
+  function switchMode(next: Mode) {
+    setMode(next);
+    setCandidates([]);
+    setMessage("");
+    setPassword("");
+  }
+
+  function canSubmit() {
+    if (!name.trim()) return false;
+    return mode === "student" || password.trim().length > 0;
+  }
+
   function redirectByRole(role: string) {
     router.push(role === "teacher" ? "/teacher" : "/student");
     router.refresh();
@@ -84,24 +112,66 @@ export default function LoginForm() {
           <p className="text-slate-500 mt-2">分数乘法 · 引导式应用题练习</p>
         </div>
 
+        {/* 模式切换：我是学生 / 我是老师 */}
+        <div className="flex rounded-2xl bg-slate-100 p-1 mb-6">
+          <button
+            onClick={() => switchMode("student")}
+            className={`flex-1 rounded-xl py-2.5 text-base font-semibold transition ${
+              mode === "student" ? "bg-white text-sky-600 shadow" : "text-slate-500"
+            }`}
+          >
+            我是学生
+          </button>
+          <button
+            onClick={() => switchMode("teacher")}
+            className={`flex-1 rounded-xl py-2.5 text-base font-semibold transition ${
+              mode === "teacher" ? "bg-white text-orange-500 shadow" : "text-slate-500"
+            }`}
+          >
+            我是老师
+          </button>
+        </div>
+
         {candidates.length === 0 ? (
           <div>
-            <label className="block text-sm font-medium text-slate-600 mb-2">请输入你的姓名</label>
+            <label className="block text-sm font-medium text-slate-600 mb-2">
+              {mode === "teacher" ? "请输入老师姓名" : "请输入学生姓名"}
+            </label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && name.trim() && doLogin(name.trim())}
-              placeholder="例如：小明"
+              onKeyDown={(e) => e.key === "Enter" && canSubmit() && doLogin(name.trim())}
+              placeholder={mode === "teacher" ? "例如：王老师" : "例如：小明"}
               className="w-full text-xl rounded-2xl border-2 border-slate-200 px-4 py-3 focus:border-sky-400 focus:outline-none"
             />
+
+            {mode === "teacher" && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-slate-600 mb-2">老师密码</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && canSubmit() && doLogin(name.trim())}
+                  placeholder="默认：Admin123456"
+                  className="w-full text-xl rounded-2xl border-2 border-slate-200 px-4 py-3 focus:border-orange-400 focus:outline-none"
+                />
+              </div>
+            )}
+
             <button
-              onClick={() => name.trim() && doLogin(name.trim())}
-              disabled={loading || !name.trim()}
-              className="mt-4 w-full bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white text-xl font-semibold rounded-2xl py-3"
+              onClick={() => canSubmit() && doLogin(name.trim())}
+              disabled={loading || !canSubmit()}
+              className={`mt-5 w-full text-white text-xl font-semibold rounded-2xl py-3 disabled:opacity-50 ${
+                mode === "teacher" ? "bg-orange-500 hover:bg-orange-600" : "bg-sky-500 hover:bg-sky-600"
+              }`}
             >
-              {loading ? "登录中…" : "进入练习"}
+              {loading ? "登录中…" : mode === "teacher" ? "进入老师端" : "进入练习"}
             </button>
-            {message && <p className="mt-4 text-sm text-amber-600 bg-amber-50 rounded-xl p-3">{message}</p>}
+
+            {message && (
+              <p className="mt-4 text-sm text-amber-700 bg-amber-50 rounded-xl p-3">{message}</p>
+            )}
           </div>
         ) : (
           <div>
