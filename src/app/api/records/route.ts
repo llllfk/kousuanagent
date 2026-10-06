@@ -3,6 +3,7 @@ import { requireStudent } from "@/lib/auth-guard";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { hasReferenceAnswer, judge } from "@/lib/judge";
 import { getRound } from "@/lib/rounds";
+import { normalizePhotoKey } from "@/storage/s3";
 
 /** 学生本人练习记录 + 汇总统计 */
 export async function GET() {
@@ -62,7 +63,7 @@ export async function GET() {
           student_answer: r.student_answer,
           is_correct: r.is_correct,
           judged: hasReferenceAnswer(r.questions?.answer),
-          photo_key: r.photo_key || "",
+          photo_key: normalizePhotoKey(r.photo_key || ""),
           guide_rounds: r.guide_rounds,
           attempt_number: r.attempt_number,
           practice_time: r.practice_time,
@@ -152,7 +153,7 @@ export async function POST(req: NextRequest) {
       guide_rounds: conversationId ? getRound(conversationId) : 0,
       attempt_number: (count ?? 0) + 1,
       practice_time: new Date().toISOString(),
-      photo_key: photo || photoKey ? photoKey : "",
+      photo_key: photo ? normalizePhotoKey(photoKey) : "",
     });
     if (insErr) throw new Error(insErr.message);
 

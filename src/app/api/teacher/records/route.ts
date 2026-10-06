@@ -3,6 +3,7 @@ import { requireTeacher } from "@/lib/auth-guard";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { hasReferenceAnswer } from "@/lib/judge";
 import { PHOTO_QUESTION_TYPE, isPhotoQuestion } from "@/lib/rounds";
+import { normalizePhotoKey } from "@/storage/s3";
 
 /** 老师按学生 + 题型查看练习明细 */
 export async function GET(req: NextRequest) {
@@ -58,7 +59,7 @@ export async function GET(req: NextRequest) {
       if (!agg.lastTime || r.practice_time > agg.lastTime) {
         agg.lastTime = r.practice_time;
         agg.lastAnswer = r.student_answer || "";
-        agg.lastPhotoKey = r.photo_key || "";
+        agg.lastPhotoKey = normalizePhotoKey(r.photo_key || "");
       }
     }
 
@@ -66,6 +67,21 @@ export async function GET(req: NextRequest) {
       data: Array.from(map.values()).sort(
         (a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime()
       ),
+      details: rows.map((r) => ({
+        id: r.id,
+        student_id: r.student_id,
+        student_name: r.users?.name || "",
+        question_id: r.question_id,
+        stem: r.questions?.stem || "",
+        question_type: r.questions?.question_type || "",
+        student_answer: r.student_answer || "",
+        photo_key: normalizePhotoKey(r.photo_key || ""),
+        is_correct: !!r.is_correct,
+        judged: hasReferenceAnswer(r.questions?.answer),
+        attempt_number: r.attempt_number,
+        guide_rounds: r.guide_rounds,
+        practice_time: r.practice_time,
+      })),
     });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "查询失败" }, { status: 500 });

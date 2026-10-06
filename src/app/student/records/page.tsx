@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isPhotoQuestion } from "@/lib/rounds";
+import { PhotoPreview } from "@/components/PhotoPreview";
 
 interface Detail {
   id: number;
@@ -117,6 +118,7 @@ export default function StudentRecords() {
               <thead className="bg-slate-50 text-slate-500">
                 <tr>
                   <th className="px-4 py-3">题目</th>
+                  <th className="px-4 py-3">题目图片</th>
                   <th className="px-4 py-3">我的答案</th>
                   <th className="px-4 py-3">结果</th>
                   <th className="px-4 py-3">第几次</th>
@@ -130,15 +132,9 @@ export default function StudentRecords() {
                   const unjudged = photo || !d.judged;
                   return (
                   <tr key={d.id} className="border-t border-slate-100">
-                    <td className="px-4 py-3 max-w-[200px]">
-                      {d.photo_key ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={`/api/photos?key=${encodeURIComponent(d.photo_key)}`}
-                          alt="拍题目"
-                          className="h-16 w-16 rounded-xl object-cover bg-slate-100"
-                        />
-                      ) : photo ? "拍题目" : d.stem}
+                    <td className="px-4 py-3 max-w-[200px] line-clamp-2">{photo ? "拍题目" : d.stem}</td>
+                    <td className="px-4 py-3">
+                      {d.photo_key ? <PhotoPreview photoKey={d.photo_key} /> : <span className="text-slate-300">-</span>}
                     </td>
                     <td className="px-4 py-3">{d.student_answer}</td>
                     <td className="px-4 py-3">

@@ -16,6 +16,23 @@ export function isPhotoObjectKey(key: string): boolean {
   return key.startsWith(PREFIX) && !key.includes("..");
 }
 
+/** 扣子 S3 可能返回完整 URL，统一成对象 key */
+export function normalizePhotoKey(raw: string): string {
+  const value = raw.trim();
+  if (!value || value.includes("..")) return "";
+  let path = value;
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    try {
+      path = decodeURIComponent(new URL(value).pathname.replace(/^\//, ""));
+    } catch {
+      return "";
+    }
+  }
+  const idx = path.indexOf(PREFIX);
+  const key = idx >= 0 ? path.slice(idx) : path;
+  return isPhotoObjectKey(key) ? key : "";
+}
+
 function extFromMime(mime: string): string {
   if (mime === "image/png") return "png";
   if (mime === "image/webp") return "webp";
@@ -35,7 +52,7 @@ export async function uploadPhotoObject(
     fileName,
     contentType: mime,
   });
-  return typeof uploaded === "string" && uploaded.trim() ? uploaded.trim() : fileName;
+  return normalizePhotoKey(typeof uploaded === "string" ? uploaded : "") || fileName;
 }
 
 export async function readPhotoObject(key: string): Promise<Buffer> {

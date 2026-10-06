@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
-import { isPhotoObjectKey, readPhotoObject } from "@/storage/s3";
+import { isPhotoObjectKey, normalizePhotoKey, readPhotoObject } from "@/storage/s3";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,22 +20,24 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "请先登录" }, { status: 401 });
     }
-    const key = (req.nextUrl.searchParams.get("key") || "").trim();
-    if (!key || key.includes("..") || (!isPhotoObjectKey(key) && !key.includes("photo-questions/"))) {
+    const key = normalizePhotoKey(req.nextUrl.searchParams.get("key") || "");
+    if (!key || !isPhotoObjectKey(key)) {
       return NextResponse.json({ error: "图片不存在" }, { status: 404 });
     }
     if (user.role === "student") {
       const ownPrefix = `photo-questions/${user.id}/`;
-      const ownsByPath = key.includes(ownPrefix);
+      const ownsByPath = key.startsWith(ownPrefix);
       if (!ownsByPath) {
         const client = getSupabaseClient();
         const owned = await client
           .from("records")
-          .select("id", { count: "exact", head: true })
-          .eq("student_id", user.id)
-          .eq("photo_key", key);
+          .select("photo_key")
+          .eq("student_id", user.id);
         if (owned.error) throw new Error(owned.error.message);
-        if (!owned.count) {
+        const matched = (owned.data || []).some(
+          (row: { photo_key?: string }) => normalizePhotoKey(row.photo_key || "") === key
+        );
+        if (!matched) {
           return NextResponse.json({ error: "无权查看" }, { status: 403 });
         }
       }

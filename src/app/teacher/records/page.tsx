@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PHOTO_QUESTION_TYPE, isPhotoQuestion } from "@/lib/rounds";
+import { PhotoPreview } from "@/components/PhotoPreview";
 
 interface Row {
   student_id: number;
@@ -19,6 +20,20 @@ interface Row {
   judged?: boolean;
 }
 
+interface Detail {
+  id: number;
+  student_name: string;
+  stem: string;
+  question_type: string;
+  student_answer: string;
+  photo_key?: string;
+  is_correct: boolean;
+  judged?: boolean;
+  attempt_number: number;
+  guide_rounds: number;
+  practice_time: string;
+}
+
 interface StudentOpt {
   id: number;
   name: string;
@@ -26,6 +41,7 @@ interface StudentOpt {
 
 export default function TeacherRecords() {
   const [rows, setRows] = useState<Row[]>([]);
+  const [details, setDetails] = useState<Detail[]>([]);
   const [students, setStudents] = useState<StudentOpt[]>([]);
   const [studentId, setStudentId] = useState("");
   const [qtype, setQtype] = useState("");
@@ -46,7 +62,10 @@ export default function TeacherRecords() {
       .then((r) => r.json())
       .then((j) => {
         if (j.error) setError(j.error);
-        else setRows(j.data || []);
+        else {
+          setRows(j.data || []);
+          setDetails(j.details || []);
+        }
       })
       .catch(() => setError("加载失败"));
   }, [studentId, qtype]);
@@ -102,18 +121,7 @@ export default function TeacherRecords() {
                   <tr key={`${r.student_id}-${r.question_id}`} className="border-t border-slate-100">
                     <td className="px-4 py-3 font-medium">{r.student_name}</td>
                     <td className="px-4 py-3 max-w-[240px]">
-                      {r.lastPhotoKey ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={`/api/photos?key=${encodeURIComponent(r.lastPhotoKey)}`}
-                          alt="拍题目"
-                          className="h-16 w-16 rounded-xl object-cover bg-slate-100"
-                        />
-                      ) : photo ? (
-                        "拍题目"
-                      ) : (
-                        <span className="line-clamp-2">{r.stem}</span>
-                      )}
+                      {photo ? "拍题目" : <span className="line-clamp-2">{r.stem}</span>}
                     </td>
                     <td className="px-4 py-3">{photo ? "拍题目" : r.question_type}</td>
                     <td className="px-4 py-3">{r.lastAnswer || "-"}</td>
@@ -130,6 +138,56 @@ export default function TeacherRecords() {
                       {new Date(r.lastTime).toLocaleString("zh-CN", { hour12: false })}
                     </td>
                   </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <h2 className="text-xl font-semibold text-slate-700 mt-8 mb-3">每次作答明细</h2>
+      {details.length === 0 ? (
+        <p className="text-slate-400">暂无明细</p>
+      ) : (
+        <div className="bg-white rounded-3xl shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">学生</th>
+                  <th className="px-4 py-3">题目</th>
+                  <th className="px-4 py-3">题目图片</th>
+                  <th className="px-4 py-3">答案</th>
+                  <th className="px-4 py-3">结果</th>
+                  <th className="px-4 py-3">第几次</th>
+                  <th className="px-4 py-3">时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                {details.map((d) => {
+                  const photo = isPhotoQuestion(d.stem, d.question_type);
+                  const unjudged = photo || d.judged === false;
+                  return (
+                    <tr key={d.id} className="border-t border-slate-100 align-top">
+                      <td className="px-4 py-3 font-medium">{d.student_name}</td>
+                      <td className="px-4 py-3 max-w-[200px]">{photo ? "拍题目" : d.stem}</td>
+                      <td className="px-4 py-3">
+                        {d.photo_key ? <PhotoPreview photoKey={d.photo_key} /> : <span className="text-slate-300">-</span>}
+                      </td>
+                      <td className="px-4 py-3">{d.student_answer || "-"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`rounded-full px-2 py-0.5 ${
+                          unjudged ? "bg-sky-100 text-sky-700" : d.is_correct ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600"
+                        }`}>
+                          {unjudged ? "已提交" : d.is_correct ? "对" : "错"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">{d.attempt_number}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-slate-400">
+                        {d.practice_time ? new Date(d.practice_time).toLocaleString("zh-CN", { hour12: false }) : "-"}
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
