@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireStudent } from "@/lib/auth-guard";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { hasReferenceAnswer, judge } from "@/lib/judge";
+import { ensurePhotoQuestionId, hasSubmittedAnswer } from "@/lib/practice-record";
 import { getRound } from "@/lib/rounds";
 import { normalizePhotoKey } from "@/storage/s3";
 
-/** 学生本人练习记录 + 汇总统计 */
+/** 学生本人练习记录 + 汇总统计（含仅对话未提交答案） */
 export async function GET() {
   try {
     const student = await requireStudent();
@@ -19,11 +20,11 @@ export async function GET() {
 
     const rows = (data || []) as any[];
 
-    // 逐题汇总
     const byQuestion = new Map<number, any>();
     for (const r of rows) {
       const q = r.questions;
       const judged = hasReferenceAnswer(q?.answer);
+      const submitted = hasSubmittedAnswer(r.student_answer);
       if (!byQuestion.has(r.question_id)) {
         byQuestion.set(r.question_id, {
           question_id: r.question_id,
@@ -34,11 +35,13 @@ export async function GET() {
           lastTime: "",
           everCorrect: false,
           judged,
+          submitted: false,
         });
       }
       const agg = byQuestion.get(r.question_id);
       agg.attempts += 1;
       if (r.is_correct) agg.everCorrect = true;
+      if (submitted) agg.submitted = true;
       if (!agg.lastTime || r.practice_time > agg.lastTime) agg.practice_time = r.practice_time;
     }
 
@@ -47,7 +50,8 @@ export async function GET() {
     );
 
     const totalAttempts = rows.length;
-    const judgedRows = rows.filter((r) => hasReferenceAnswer(r.questions?.answer));
+    const submittedRows = rows.filter((r) => hasSubmittedAnswer(r.student_answer));
+    const judgedRows = submittedRows.filter((r) => hasReferenceAnswer(r.questions?.answer));
     const correctAttempts = judgedRows.filter((r) => r.is_correct).length;
     const answeredQuestions = byQuestion.size;
     const correctRate = judgedRows.length ? Math.round((correctAttempts / judgedRows.length) * 100) : 0;
@@ -60,9 +64,10 @@ export async function GET() {
           stem: r.questions?.stem || "",
           question_type: r.questions?.question_type || "",
           difficulty: r.questions?.difficulty || "",
-          student_answer: r.student_answer,
+          student_answer: r.student_answer || "",
           is_correct: r.is_correct,
           judged: hasReferenceAnswer(r.questions?.answer),
+          submitted: hasSubmittedAnswer(r.student_answer),
           photo_key: normalizePhotoKey(r.photo_key || ""),
           guide_rounds: r.guide_rounds,
           attempt_number: r.attempt_number,
@@ -74,6 +79,7 @@ export async function GET() {
           correctAttempts,
           answeredQuestions,
           correctRate,
+          submittedAttempts: submittedRows.length,
         },
       },
     });
@@ -83,12 +89,12 @@ export async function GET() {
   }
 }
 
-/** 提交答案：只落库，不发给智能体。是否正确仅写入记录，不做对话反馈。 */
+/** 提交答案：更新对话时已创建的记录；没有会话记录时再新建 */
 export async function POST(req: NextRequest) {
   try {
     const student = await requireStudent();
     const body = await req.json();
-    const conversationId = (body?.conversationId || "").toString();
+    const conversationId = (body?.conversationId || "").toString().trim();
     const studentAnswer = (body?.studentAnswer || "").toString().trim();
     const photo = body?.photo === true;
     const photoKey = (body?.photoKey || "").toString().trim();
@@ -100,32 +106,8 @@ export async function POST(req: NextRequest) {
 
     const client = getSupabaseClient();
 
-    // 拍题没有题库 id：复用/创建一条「拍题目」占位题，不进题库列表
     if (photo || !Number.isInteger(questionId) || questionId <= 0) {
-      const existed = await client
-        .from("questions")
-        .select("id, answer")
-        .eq("question_type", "拍题目")
-        .eq("stem", "拍题目")
-        .maybeSingle();
-      if (existed.error) throw new Error(existed.error.message);
-      if (existed.data?.id) {
-        questionId = existed.data.id;
-      } else {
-        const created = await client
-          .from("questions")
-          .insert({
-            stem: "拍题目",
-            answer: "",
-            analysis: "",
-            question_type: "拍题目",
-            difficulty: "简单",
-          })
-          .select("id, answer")
-          .single();
-        if (created.error) throw new Error(created.error.message);
-        questionId = created.data.id;
-      }
+      questionId = await ensurePhotoQuestionId();
     }
 
     const { data: q, error: qErr } = await client
@@ -135,6 +117,39 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     if (qErr) throw new Error(qErr.message);
     if (!q) return NextResponse.json({ error: "题目不存在" }, { status: 404 });
+
+    const answerText = typeof q.answer === "string" ? q.answer : "";
+    const isCorrect = hasReferenceAnswer(answerText)
+      ? judge(answerText, studentAnswer).result === "正确"
+      : false;
+    const guideRounds = conversationId ? getRound(conversationId) : 0;
+    const now = new Date().toISOString();
+    const key = photo ? normalizePhotoKey(photoKey) : "";
+
+    if (conversationId) {
+      const existed = await client
+        .from("records")
+        .select("id")
+        .eq("student_id", student.id)
+        .eq("conversation_id", conversationId)
+        .maybeSingle();
+      if (existed.error) throw new Error(existed.error.message);
+      if (existed.data?.id) {
+        const updates: Record<string, unknown> = {
+          student_answer: studentAnswer,
+          is_correct: isCorrect,
+          guide_rounds: guideRounds,
+          practice_time: now,
+        };
+        if (key) updates.photo_key = key;
+        const { error: updErr } = await client
+          .from("records")
+          .update(updates)
+          .eq("id", existed.data.id);
+        if (updErr) throw new Error(updErr.message);
+        return NextResponse.json({ status: "ok" });
+      }
+    }
 
     const { count, error: countErr } = await client
       .from("records")
@@ -147,13 +162,12 @@ export async function POST(req: NextRequest) {
       student_id: student.id,
       question_id: q.id,
       student_answer: studentAnswer,
-      is_correct: hasReferenceAnswer(typeof q.answer === "string" ? q.answer : "")
-        ? judge(typeof q.answer === "string" ? q.answer : "", studentAnswer).result === "正确"
-        : false,
-      guide_rounds: conversationId ? getRound(conversationId) : 0,
+      is_correct: isCorrect,
+      guide_rounds: guideRounds,
       attempt_number: (count ?? 0) + 1,
-      practice_time: new Date().toISOString(),
-      photo_key: photo ? normalizePhotoKey(photoKey) : "",
+      practice_time: now,
+      photo_key: key,
+      conversation_id: conversationId,
     });
     if (insErr) throw new Error(insErr.message);
 

@@ -52,6 +52,18 @@ export async function POST(req: NextRequest) {
     }
 
     const roundCount = type === "opening" ? 0 : advanceRound(conversationId);
+    if (type === "message" && roundCount > 0) {
+      // 对话推进时同步轮次到练习记录，未提交答案也能看到引导轮次
+      const { error: roundErr } = await client
+        .from("records")
+        .update({ guide_rounds: roundCount })
+        .eq("student_id", student.id)
+        .eq("conversation_id", conversationId);
+      if (roundErr) {
+        // 不影响对话本身
+        console.error("update guide_rounds failed", roundErr.message);
+      }
+    }
 
     const variables = {
       question: stem,

@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS records (
   practice_time TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE records ADD COLUMN IF NOT EXISTS photo_key TEXT DEFAULT '';
+ALTER TABLE records ADD COLUMN IF NOT EXISTS conversation_id TEXT DEFAULT '';
 `;
 
 async function ensureSchema() {

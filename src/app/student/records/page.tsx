@@ -14,6 +14,7 @@ interface Detail {
   student_answer: string;
   is_correct: boolean;
   judged?: boolean;
+  submitted?: boolean;
   photo_key?: string;
   guide_rounds: number;
   attempt_number: number;
@@ -29,6 +30,7 @@ interface Summary {
   practice_time?: string;
   everCorrect: boolean;
   judged?: boolean;
+  submitted?: boolean;
 }
 
 export default function StudentRecords() {
@@ -88,7 +90,13 @@ export default function StudentRecords() {
       <div className="space-y-3 mb-8">
         {data.questionSummary.map((s) => {
           const photo = isPhotoQuestion(s.stem, s.question_type);
-          const unjudged = photo || !s.judged;
+          const status = !s.submitted
+            ? { text: "已对话", cls: "bg-sky-100 text-sky-700" }
+            : photo || !s.judged
+              ? { text: "已提交", cls: "bg-sky-100 text-sky-700" }
+              : s.everCorrect
+                ? { text: "已做对", cls: "bg-emerald-100 text-emerald-700" }
+                : { text: "未做对", cls: "bg-rose-100 text-rose-600" };
           return (
           <div key={s.question_id} className="bg-white rounded-3xl shadow p-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -97,10 +105,8 @@ export default function StudentRecords() {
                 练习 {s.attempts} 次{photo ? " · 拍题目" : ` · ${s.difficulty}`}
               </div>
             </div>
-            <span className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold ${
-              unjudged ? "bg-sky-100 text-sky-700" : s.everCorrect ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600"
-            }`}>
-              {unjudged ? "已提交" : s.everCorrect ? "已做对" : "未做对"}
+            <span className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold ${status.cls}`}>
+              {status.text}
             </span>
           </div>
           );
@@ -129,19 +135,23 @@ export default function StudentRecords() {
               <tbody>
                 {data.details.map((d) => {
                   const photo = isPhotoQuestion(d.stem, d.question_type);
-                  const unjudged = photo || !d.judged;
+                  const status = !d.submitted
+                    ? { text: "已对话", cls: "bg-sky-100 text-sky-700" }
+                    : photo || !d.judged
+                      ? { text: "已提交", cls: "bg-sky-100 text-sky-700" }
+                      : d.is_correct
+                        ? { text: "对", cls: "bg-emerald-100 text-emerald-700" }
+                        : { text: "错", cls: "bg-rose-100 text-rose-600" };
                   return (
                   <tr key={d.id} className="border-t border-slate-100">
                     <td className="px-4 py-3 max-w-[200px] line-clamp-2">{photo ? "拍题目" : d.stem}</td>
                     <td className="px-4 py-3">
                       {d.photo_key ? <PhotoPreview photoKey={d.photo_key} /> : <span className="text-slate-300">-</span>}
                     </td>
-                    <td className="px-4 py-3">{d.student_answer}</td>
+                    <td className="px-4 py-3">{d.student_answer || "-"}</td>
                     <td className="px-4 py-3">
-                      <span className={`rounded-full px-2 py-0.5 ${
-                        unjudged ? "bg-sky-100 text-sky-700" : d.is_correct ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600"
-                      }`}>
-                        {unjudged ? "已提交" : d.is_correct ? "对" : "错"}
+                      <span className={`rounded-full px-2 py-0.5 ${status.cls}`}>
+                        {status.text}
                       </span>
                     </td>
                     <td className="px-4 py-3">{d.attempt_number}</td>

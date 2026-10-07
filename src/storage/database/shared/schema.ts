@@ -38,4 +38,5 @@ export const records = pgTable("records", {
 	attempt_number: integer("attempt_number").notNull().default(1), // 第几次作答
 	practice_time: timestamp("practice_time", { withTimezone: true }).defaultNow().notNull(),
 	photo_key: text("photo_key").notNull().default(""), // 拍题照片（Coze S3 object key）
+	conversation_id: text("conversation_id").notNull().default(""), // Coze 会话 id，开场即落库便于查询
 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTeacher } from "@/lib/auth-guard";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { hasReferenceAnswer } from "@/lib/judge";
+import { hasSubmittedAnswer } from "@/lib/practice-record";
 import { PHOTO_QUESTION_TYPE, isPhotoQuestion } from "@/lib/rounds";
 import { normalizePhotoKey } from "@/storage/s3";
 
@@ -50,11 +51,13 @@ export async function GET(req: NextRequest) {
           lastAnswer: "",
           lastPhotoKey: "",
           judged: hasReferenceAnswer(r.questions?.answer),
+          submitted: false,
         });
       }
       const agg = map.get(key);
       agg.attempts += 1;
       if (isCorrect) agg.correctAttempts += 1;
+      if (hasSubmittedAnswer(r.student_answer)) agg.submitted = true;
       agg.guideRounds.push(r.guide_rounds);
       if (!agg.lastTime || r.practice_time > agg.lastTime) {
         agg.lastTime = r.practice_time;
@@ -78,6 +81,7 @@ export async function GET(req: NextRequest) {
         photo_key: normalizePhotoKey(r.photo_key || ""),
         is_correct: !!r.is_correct,
         judged: hasReferenceAnswer(r.questions?.answer),
+        submitted: hasSubmittedAnswer(r.student_answer),
         attempt_number: r.attempt_number,
         guide_rounds: r.guide_rounds,
         practice_time: r.practice_time,

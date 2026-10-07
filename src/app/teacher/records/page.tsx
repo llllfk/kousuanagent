@@ -18,6 +18,7 @@ interface Row {
   lastAnswer: string;
   lastPhotoKey?: string;
   judged?: boolean;
+  submitted?: boolean;
 }
 
 interface Detail {
@@ -29,6 +30,7 @@ interface Detail {
   photo_key?: string;
   is_correct: boolean;
   judged?: boolean;
+  submitted?: boolean;
   attempt_number: number;
   guide_rounds: number;
   practice_time: string;
@@ -116,7 +118,14 @@ export default function TeacherRecords() {
               <tbody>
                 {rows.map((r) => {
                   const photo = isPhotoQuestion(r.stem, r.question_type);
-                  const unjudged = photo || r.judged === false;
+                  const status = !r.submitted
+                    ? { text: "已对话", cls: "bg-sky-100 text-sky-700" }
+                    : photo || r.judged === false
+                      ? { text: "已提交", cls: "bg-sky-100 text-sky-700" }
+                      : {
+                          text: `${r.correctAttempts}/${r.attempts}`,
+                          cls: r.correctAttempts > 0 ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600",
+                        };
                   return (
                   <tr key={`${r.student_id}-${r.question_id}`} className="border-t border-slate-100">
                     <td className="px-4 py-3 font-medium">{r.student_name}</td>
@@ -127,10 +136,8 @@ export default function TeacherRecords() {
                     <td className="px-4 py-3">{r.lastAnswer || "-"}</td>
                     <td className="px-4 py-3">{r.attempts}</td>
                     <td className="px-4 py-3">
-                      <span className={`rounded-full px-2 py-0.5 ${
-                        unjudged ? "bg-sky-100 text-sky-700" : r.correctAttempts > 0 ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600"
-                      }`}>
-                        {unjudged ? "已提交" : `${r.correctAttempts}/${r.attempts}`}
+                      <span className={`rounded-full px-2 py-0.5 ${status.cls}`}>
+                        {status.text}
                       </span>
                     </td>
                     <td className="px-4 py-3">{r.guideRounds.join("/")}</td>
@@ -167,7 +174,13 @@ export default function TeacherRecords() {
               <tbody>
                 {details.map((d) => {
                   const photo = isPhotoQuestion(d.stem, d.question_type);
-                  const unjudged = photo || d.judged === false;
+                  const status = !d.submitted
+                    ? { text: "已对话", cls: "bg-sky-100 text-sky-700" }
+                    : photo || d.judged === false
+                      ? { text: "已提交", cls: "bg-sky-100 text-sky-700" }
+                      : d.is_correct
+                        ? { text: "对", cls: "bg-emerald-100 text-emerald-700" }
+                        : { text: "错", cls: "bg-rose-100 text-rose-600" };
                   return (
                     <tr key={d.id} className="border-t border-slate-100 align-top">
                       <td className="px-4 py-3 font-medium">{d.student_name}</td>
@@ -177,10 +190,8 @@ export default function TeacherRecords() {
                       </td>
                       <td className="px-4 py-3">{d.student_answer || "-"}</td>
                       <td className="px-4 py-3">
-                        <span className={`rounded-full px-2 py-0.5 ${
-                          unjudged ? "bg-sky-100 text-sky-700" : d.is_correct ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600"
-                        }`}>
-                          {unjudged ? "已提交" : d.is_correct ? "对" : "错"}
+                        <span className={`rounded-full px-2 py-0.5 ${status.cls}`}>
+                          {status.text}
                         </span>
                       </td>
                       <td className="px-4 py-3">{d.attempt_number}</td>

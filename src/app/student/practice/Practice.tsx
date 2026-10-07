@@ -79,7 +79,9 @@ export default function PracticePage({
         const cRes = await fetch("/api/conversation", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(photoMode ? { photo: true } : { questionId }),
+          body: JSON.stringify(
+            photoMode ? { photo: true, photoKey: photoKey || "" } : { questionId }
+          ),
         });
         const cData = await cRes.json();
         if (cancelled) return;
