@@ -88,6 +88,9 @@ CREATE TABLE IF NOT EXISTS records (
   attempt_number INTEGER,
   practice_time TIMESTAMPTZ DEFAULT NOW()
 );
+`;
+
+const SCHEMA_ALTER_SQL = `
 ALTER TABLE records ADD COLUMN IF NOT EXISTS photo_key TEXT DEFAULT '';
 ALTER TABLE records ADD COLUMN IF NOT EXISTS conversation_id TEXT DEFAULT '';
 `;
@@ -96,10 +99,14 @@ async function ensureSchema() {
   if (!schemaReady) {
     schemaReady = (async () => {
       await getPool().query(SCHEMA_SQL);
+      await getPool().query(SCHEMA_ALTER_SQL);
     })().catch((err) => {
       schemaReady = null;
       throw err;
     });
+  } else {
+    // 已初始化过也补跑 ALTER，避免新字段在热更新后仍缺失
+    await getPool().query(SCHEMA_ALTER_SQL);
   }
   await schemaReady;
 }

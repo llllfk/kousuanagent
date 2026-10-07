@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { RichMathText } from "@/components/RichMathText";
 
 interface Msg {
   id: string;
@@ -256,7 +257,9 @@ export default function PracticePage({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={imagePreview} alt="拍摄的题目" className="mt-2 max-h-56 rounded-2xl object-contain bg-white" />
         ) : (
-          <p className="text-lg leading-relaxed text-slate-800 font-medium">{question?.stem || "加载中…"}</p>
+          <p className="text-lg leading-relaxed text-slate-800 font-medium">
+            {question?.stem ? <RichMathText text={question.stem} /> : "加载中…"}
+          </p>
         )}
         <button onClick={() => router.push("/student")} className="mt-3 text-sky-600 text-sm font-medium">
           ← 返回题目列表
@@ -300,7 +303,7 @@ export default function PracticePage({
               }`}
             >
               {m.content ? (
-                m.content
+                <RichMathText text={m.content} />
               ) : m.role === "bot" ? (
                 <span className="text-slate-400">引导老师正在输入…</span>
               ) : null}
@@ -349,7 +352,7 @@ export default function PracticePage({
               <div className="space-y-2">
                 <p>提交后只记入练习记录，不会发给引导老师，也不再判断对错。</p>
                 <p className="rounded-2xl bg-slate-100 px-4 py-3 text-base text-slate-800 break-words">
-                  {pendingAnswer}
+                  <RichMathText text={pendingAnswer} />
                 </p>
               </div>
             </AlertDialogDescription>

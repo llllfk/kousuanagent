@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { DIFFICULTIES } from "@/lib/rounds";
+import { RichMathText } from "@/components/RichMathText";
 
 interface Question {
   id: number;
@@ -178,7 +179,9 @@ export default function StudentQuestionList() {
               <span className="text-xs rounded-full px-3 py-1 bg-indigo-100 text-indigo-700">{q.question_type}</span>
               <span className={`text-xs rounded-full px-3 py-1 ${diffColor[q.difficulty] || "bg-slate-100 text-slate-600"}`}>{q.difficulty}</span>
             </div>
-            <p className="text-slate-700 text-lg leading-relaxed line-clamp-3">{q.stem}</p>
+            <p className="text-slate-700 text-lg leading-relaxed line-clamp-3">
+              <RichMathText text={q.stem} />
+            </p>
             <div className="mt-3 text-sky-500 text-sm font-medium">开始练习 →</div>
           </button>
         ))}

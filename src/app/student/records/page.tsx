@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isPhotoQuestion } from "@/lib/rounds";
 import { PhotoPreview } from "@/components/PhotoPreview";
+import { RichMathText } from "@/components/RichMathText";
 
 interface Detail {
   id: number;
@@ -100,7 +101,9 @@ export default function StudentRecords() {
           return (
           <div key={s.question_id} className="bg-white rounded-3xl shadow p-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-slate-700 line-clamp-2">{photo ? "拍题目" : s.stem}</p>
+              <p className="text-slate-700 line-clamp-2">
+                {photo ? "拍题目" : <RichMathText text={s.stem} />}
+              </p>
               <div className="text-sm text-slate-400 mt-1">
                 练习 {s.attempts} 次{photo ? " · 拍题目" : ` · ${s.difficulty}`}
               </div>
@@ -144,11 +147,15 @@ export default function StudentRecords() {
                         : { text: "错", cls: "bg-rose-100 text-rose-600" };
                   return (
                   <tr key={d.id} className="border-t border-slate-100">
-                    <td className="px-4 py-3 max-w-[200px] line-clamp-2">{photo ? "拍题目" : d.stem}</td>
+                    <td className="px-4 py-3 max-w-[200px] line-clamp-2">
+                      {photo ? "拍题目" : <RichMathText text={d.stem} />}
+                    </td>
                     <td className="px-4 py-3">
                       {d.photo_key ? <PhotoPreview photoKey={d.photo_key} /> : <span className="text-slate-300">-</span>}
                     </td>
-                    <td className="px-4 py-3">{d.student_answer || "-"}</td>
+                    <td className="px-4 py-3">
+                      {d.student_answer ? <RichMathText text={d.student_answer} /> : "-"}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2 py-0.5 ${status.cls}`}>
                         {status.text}

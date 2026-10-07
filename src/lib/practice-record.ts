@@ -54,7 +54,15 @@ export async function startPracticeRecord(opts: {
     photo_key: normalizePhotoKey(opts.photoKey || ""),
     conversation_id: opts.conversationId,
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    const msg = error.message || "";
+    if (msg.includes("conversation_id") && msg.includes("schema")) {
+      throw new Error(
+        "数据库缺少 conversation_id 字段。请执行：ALTER TABLE records ADD COLUMN IF NOT EXISTS conversation_id TEXT DEFAULT ''; 然后重启服务。"
+      );
+    }
+    throw new Error(msg);
+  }
 }
 
 export function hasSubmittedAnswer(answer?: string | null): boolean {

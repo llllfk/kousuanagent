@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { DIFFICULTIES } from "@/lib/rounds";
+import { RichMathText } from "@/components/RichMathText";
 
 interface Question {
   id: number;
@@ -135,10 +136,18 @@ export default function TeacherQuestions() {
                 <div className="flex flex-wrap gap-2 mb-2">
                   <span className="text-xs rounded-full px-3 py-1 bg-indigo-100 text-indigo-700">{q.question_type}</span>
                   <span className="text-xs rounded-full px-3 py-1 bg-amber-100 text-amber-700">{q.difficulty}</span>
-                  <span className="text-xs rounded-full px-3 py-1 bg-emerald-100 text-emerald-700">答案：{q.answer}</span>
+                  <span className="text-xs rounded-full px-3 py-1 bg-emerald-100 text-emerald-700">
+                    答案：{q.answer ? <RichMathText text={q.answer} /> : "-"}
+                  </span>
                 </div>
-                <p className="text-slate-800 leading-relaxed">{q.stem}</p>
-                {q.analysis && <p className="text-slate-500 text-sm mt-2 whitespace-pre-wrap">解析：{q.analysis}</p>}
+                <p className="text-slate-800 leading-relaxed">
+                  <RichMathText text={q.stem} />
+                </p>
+                {q.analysis && (
+                  <p className="text-slate-500 text-sm mt-2 whitespace-pre-wrap">
+                    解析：<RichMathText text={q.analysis} />
+                  </p>
+                )}
               </div>
               <div className="shrink-0 flex flex-col gap-1">
                 <button onClick={() => { setFormHint(""); setModal({ id: q.id, form: { stem: q.stem, answer: q.answer, analysis: q.analysis, question_type: q.question_type, difficulty: q.difficulty as QuestionForm["difficulty"] } }); }} className="text-sky-500 text-sm">编辑</button>

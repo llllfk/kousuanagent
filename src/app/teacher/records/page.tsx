@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PHOTO_QUESTION_TYPE, isPhotoQuestion } from "@/lib/rounds";
 import { PhotoPreview } from "@/components/PhotoPreview";
+import { RichMathText } from "@/components/RichMathText";
 
 interface Row {
   student_id: number;
@@ -130,10 +131,16 @@ export default function TeacherRecords() {
                   <tr key={`${r.student_id}-${r.question_id}`} className="border-t border-slate-100">
                     <td className="px-4 py-3 font-medium">{r.student_name}</td>
                     <td className="px-4 py-3 max-w-[240px]">
-                      {photo ? "拍题目" : <span className="line-clamp-2">{r.stem}</span>}
+                      {photo ? "拍题目" : (
+                        <span className="line-clamp-2">
+                          <RichMathText text={r.stem} />
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">{photo ? "拍题目" : r.question_type}</td>
-                    <td className="px-4 py-3">{r.lastAnswer || "-"}</td>
+                    <td className="px-4 py-3">
+                      {r.lastAnswer ? <RichMathText text={r.lastAnswer} /> : "-"}
+                    </td>
                     <td className="px-4 py-3">{r.attempts}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2 py-0.5 ${status.cls}`}>
@@ -184,11 +191,15 @@ export default function TeacherRecords() {
                   return (
                     <tr key={d.id} className="border-t border-slate-100 align-top">
                       <td className="px-4 py-3 font-medium">{d.student_name}</td>
-                      <td className="px-4 py-3 max-w-[200px]">{photo ? "拍题目" : d.stem}</td>
+                      <td className="px-4 py-3 max-w-[200px]">
+                        {photo ? "拍题目" : <RichMathText text={d.stem} />}
+                      </td>
                       <td className="px-4 py-3">
                         {d.photo_key ? <PhotoPreview photoKey={d.photo_key} /> : <span className="text-slate-300">-</span>}
                       </td>
-                      <td className="px-4 py-3">{d.student_answer || "-"}</td>
+                      <td className="px-4 py-3">
+                        {d.student_answer ? <RichMathText text={d.student_answer} /> : "-"}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`rounded-full px-2 py-0.5 ${status.cls}`}>
                           {status.text}
